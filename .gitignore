@@ -1,0 +1,14 @@
+.env
+
+# Virtual environments
+.venv/
+venv/
+.env/
+pipenv/
+
+# OS
+.DS_Store
+
+# Vector stores / generated data
+vectorstore/
+data/
