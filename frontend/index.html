@@ -1,4 +1,410 @@
+{% comment %}  with voice conversation mode {% endcomment %}
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Teacher - Voice Conversation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        /* Voice Status */
+        .voice-panel {
+            padding: 25px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .voice-status {
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .voice-status.stopped {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .voice-status.listening {
+            background: #e3f2fd;
+            color: #1976d2;
+            animation: pulse-blue 2s infinite;
+        }
+
+        .voice-status.speaking {
+            background: #fff3e0;
+            color: #f57c00;
+            animation: pulse-orange 2s infinite;
+        }
+
+        .voice-status.processing {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        @keyframes pulse-blue {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(25, 118, 210, 0); }
+        }
+
+        @keyframes pulse-orange {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(245, 124, 0, 0); }
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* User Speech Display */
+        .user-speech-box {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            min-height: 60px;
+            margin-bottom: 15px;
+            border: 2px dashed #ccc;
+        }
+
+        .user-speech-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        #userSpeechText {
+            font-size: 1.1em;
+            color: #333;
+            font-weight: 500;
+        }
+
+        /* Volume Indicator */
+        .volume-container {
+            margin-bottom: 15px;
+        }
+
+        .volume-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .volume-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #volumeIndicator {
+            height: 100%;
+            width: 0%;
+            background: #2196f3;
+            transition: width 0.1s, background-color 0.3s;
+        }
+
+        /* Controls */
+        .controls {
+            padding: 30px;
+            background: #fafafa;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        #startVoiceBtn {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            grid-column: 1 / 3;
+        }
+
+        #startVoiceBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        #stopVoiceBtn {
+            background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+            grid-column: 1 / 3;
+        }
+
+        #stopVoiceBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Whiteboard */
+        .whiteboard {
+            padding: 30px;
+            min-height: 300px;
+            background: white;
+        }
+
+        .answer-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+
+        .answer-header {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .answer-text {
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .images-section {
+            margin-top: 25px;
+        }
+
+        .images-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .image-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fafafa;
+            border-radius: 10px;
+        }
+
+        .image-label {
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        .pages-info {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* Tips */
+        .tips {
+            padding: 20px 30px;
+            background: #e7f3ff;
+            border-top: 2px solid #90caf9;
+        }
+
+        .tips h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .tips ul {
+            list-style-position: inside;
+            color: #555;
+        }
+
+        .tips li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+            
+            #startVoiceBtn, #stopVoiceBtn {
+                grid-column: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 AI Tutor bot</h1>
+            <p>Two-Way Voice Conversation Mode</p>
+        </div>
+
+        <!-- Voice Status Panel -->
+        <div class="voice-panel">
+            <div id="voiceStatus" class="voice-status stopped">
+                ⏸️ Ready to Start
+            </div>
+
+            <div class="volume-container">
+                <div class="volume-label">🎙️ Microphone Level:</div>
+                <div class="volume-bar">
+                    <div id="volumeIndicator"></div>
+                </div>
+            </div>
+
+            <div class="user-speech-box">
+                <div class="user-speech-label">You're saying:</div>
+                <div id="userSpeechText" style="color: #999;">
+                    (Your speech will appear here...)
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="pdfSelect">📚 Select Study Material:</label>
+                <select id="pdfSelect">
+                    <option value="">Loading PDFs...</option>
+                </select>
+            </div>
+
+            <!-- Text Search Mode -->
+            <div class="control-group">
+                <label for="questionInput">❓ Or Type Your Question:</label>
+                <input 
+                    type="text" 
+                    id="questionInput" 
+                    placeholder="Type your question here and press Enter or click Ask..."
+                >
+            </div>
+
+            <div class="button-group">
+                <!-- Text Mode Buttons -->
+                <button id="askBtn" class="text-mode-btn">
+                    📝 Ask (Text Mode)
+                </button>
+                
+                <!-- Voice Mode Buttons -->
+                <button id="startVoiceBtn" class="voice-mode-btn">
+                    🎤 Start Voice Conversation
+                </button>
+                <button id="stopVoiceBtn" class="voice-mode-btn" disabled>
+                    🛑 Stop Conversation
+                </button>
+            </div>
+        </div>
+
+        <!-- Answer Display -->
+        <div class="whiteboard" id="whiteboard">
+            <p style="color: #999; text-align: center; padding: 40px 20px;">
+                👆 Select a material and start the conversation
+            </p>
+        </div>
+
+        <!-- Tips -->
+        <div class="tips">
+            <h4>💡 How to Use:</h4>
+            <ul>
+                <li><strong>Select a PDF</strong> from the dropdown above</li>
+                <li><strong>Click "Start Voice Conversation"</strong> and allow microphone access</li>
+                <li><strong>Speak your question</strong> clearly - the AI will answer</li>
+                <li><strong>You can interrupt</strong> the AI by speaking while it talks!</li>
+                <li><strong>Pause briefly</strong> between questions for best results</li>
+                <li><strong>Click "Stop"</strong> when you're done studying</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/voice_conversation.js"></script>
+    <script src="js/pdf_integration.js"></script>
+</body>
+</html> 
+
+
+
+
+{% comment %} <!DOCTYPE html>only text
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -150,7 +556,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📚 AI Teacher</h1>
+        <h1>📚 AI Tutor bot</h1>
         <p class="subtitle">Learn from your materials with intelligent Q&A</p>
         
         <div class="controls">
@@ -169,4 +575,6 @@
     
     <script src="js/pdf_integration.js"></script>
 </body>
-</html>
+</html> {% endcomment %}
+
+
